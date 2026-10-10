@@ -31,12 +31,179 @@ if(error){$("posts").textContent="No se pudieron cargar las propuestas. Revisa l
 data.forEach(p=>{let a=document.createElement("article");a.className="post";let h=document.createElement("h3");h.textContent=p.title;a.append(h);let m=document.createElement("div");m.className="meta";m.textContent=`${p.category} · ${p.author_label||"Miembro"} · ${new Date(p.created_at).toLocaleString("es-ES")}`;a.append(m);let body=document.createElement("div");body.className="postbody";body.textContent=p.body;a.append(body);let acts=document.createElement("div");acts.className="actions";acts.append(button("Denunciar","secondary",()=>report("post",p.id)));if(user&&user.id===p.author_id)acts.append(button("Eliminar mi publicación","danger",async()=>{if(confirm("¿Eliminar publicación y comentarios?")){let r=await db.from("forum_posts").delete().eq("id",p.id);r.error?msg(r.error.message,true):load()}}));a.append(acts);
 (p.forum_comments||[]).sort((x,y)=>new Date(x.created_at)-new Date(y.created_at)).forEach(c=>{let box=document.createElement("div");box.className="comment";let cm=document.createElement("div");cm.className="meta";cm.textContent=`${c.author_label||"Miembro"} · ${new Date(c.created_at).toLocaleString("es-ES")}`;let cb=document.createElement("div");cb.className="postbody";cb.textContent=c.body;box.append(cm,cb);let ca=document.createElement("div");ca.className="actions";ca.append(button("Denunciar comentario","secondary",()=>report("comment",c.id)));if(user&&user.id===c.author_id)ca.append(button("Eliminar", "danger",async()=>{if(confirm("¿Eliminar comentario?")){let r=await db.from("forum_comments").delete().eq("id",c.id);r.error?msg(r.error.message,true):load()}}));box.append(ca);a.append(box)});
 if(user){let f=document.createElement("form");f.className="comment-form";let l=document.createElement("label");l.textContent="Añadir comentario";let t=document.createElement("textarea");t.required=true;t.maxLength=3000;t.placeholder="Escribe un comentario respetuoso…";let b=document.createElement("button");b.textContent="Comentar";b.style.marginTop="8px";f.append(l,t,b);f.onsubmit=async e=>{e.preventDefault();b.disabled=true;let r=await db.from("forum_comments").insert({post_id:p.id,body:t.value.trim(),author_id:user.id,author_label:user.email});b.disabled=false;r.error?msg("No se pudo comentar: "+r.error.message,true):(msg("Comentario publicado."),load())};a.append(f)}else{let hint=document.createElement("p");hint.className="small";hint.textContent="Inicia sesión para comentar.";a.append(hint)}$("posts").append(a)})}
-if(configured&&window.supabase){$("configWarning").classList.add("hidden");db=window.supabase.createClient(URL_SUPABASE,PUBLIC_KEY);db.auth.getSession().then(({data})=>{user=data.session?.user||null;update();load()});db.auth.onAuthStateChange((_e,s)=>{user=s?.user||null;update();load()})}else $("posts").innerHTML='<div class="empty">Configura primero Supabase. Consulta README_FORO_PRE.txt.</div>';
-$("loginTab").onclick=()=>modeSet("login");$("registerTab").onclick=()=>modeSet("register");
-$("authForm").onsubmit=async e=>{e.preventDefault();if(!db){msg("Configura primero Supabase.",true);return}let email=$("email").value.trim(),password=$("password").value;$("authSubmit").disabled=true;let r=mode==="register"?await db.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}}):await db.auth.signInWithPassword({email,password});$("authSubmit").disabled=false;if(r.error){msg("No se pudo completar: "+r.error.message,true);return}if(mode==="register"&&!r.data.session)msg("Cuenta creada. Revisa el correo y confirma tu dirección.");else{msg("Sesión iniciada.");$("authForm").reset()}};
-$("resetBtn").onclick=async()=>{if(!db){msg("Configura primero Supabase.",true);return}let email=$("email").value.trim();if(!email){msg("Escribe primero tu correo.",true);return}let r=await db.auth.resetPasswordForEmail(email,{redirectTo:location.origin+location.pathname});r.error?msg(r.error.message,true):msg("Si la dirección existe, recibirás instrucciones para restablecer la contraseña.")};
-$("logout").onclick=async()=>{let r=await db.auth.signOut();r.error?msg(r.error.message,true):msg("Sesión cerrada.")};
-$("postForm").onsubmit=async e=>{e.preventDefault();if(!user){msg("Inicia sesión para publicar.",true);return}let title=$("postTitle").value.trim(),body=$("postBody").value.trim();$("postSubmit").disabled=true;let r=await db.from("forum_posts").insert({title,body,category:$("category").value,author_id:user.id,author_label:user.email});$("postSubmit").disabled=false;if(r.error)msg("No se pudo publicar: "+r.error.message,true);else{$("postForm").reset();msg("Propuesta publicada. Gracias por participar.");load()}};
-$("sort").onchange=load;
+if (!configured) {
+  $("configWarning").classList.remove("hidden");
+  $("posts").innerHTML =
+    '<div class="empty">Revisa la URL y la clave pública de Supabase en la configuración del foro.</div>';
+} else if (!window.supabase || !window.supabase.createClient) {
+  $("configWarning").classList.remove("hidden");
+  $("posts").innerHTML =
+    '<div class="empty">No se ha cargado la librería de Supabase. Comprueba tu conexión y la etiqueta script de Supabase.</div>';
+} else {
+  $("configWarning").classList.add("hidden");
+
+  try {
+    db = window.supabase.createClient(URL_SUPABASE, PUBLIC_KEY);
+
+    db.auth.getSession()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("Error al recuperar la sesión:", error);
+          msg("Error al comprobar la sesión: " + error.message, true);
+          return;
+        }
+
+        user = data?.session?.user || null;
+        update();
+        load();
+      })
+      .catch(error => {
+        console.error("Error de conexión con Supabase:", error);
+        msg("No se pudo conectar con Supabase: " + error.message, true);
+      });
+
+    db.auth.onAuthStateChange((_event, session) => {
+      user = session?.user || null;
+      update();
+      load();
+    });
+  } catch (error) {
+    console.error("Error al inicializar Supabase:", error);
+    $("posts").innerHTML =
+      '<div class="empty">No se pudo iniciar Supabase. Revisa la configuración.</div>';
+  }
+}
+
+$("loginTab").onclick = () => modeSet("login");
+$("registerTab").onclick = () => modeSet("register");
+
+$("authForm").onsubmit = async e => {
+  e.preventDefault();
+
+  if (!db) {
+    msg("Supabase no está configurado o no se ha podido iniciar.", true);
+    return;
+  }
+
+  const email = $("email").value.trim();
+  const password = $("password").value;
+  $("authSubmit").disabled = true;
+
+  try {
+    const r = mode === "register"
+      ? await db.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: location.origin + location.pathname
+          }
+        })
+      : await db.auth.signInWithPassword({ email, password });
+
+    if (r.error) {
+      msg("No se pudo completar: " + r.error.message, true);
+      return;
+    }
+
+    if (mode === "register" && !r.data.session) {
+      msg("Cuenta creada. Revisa tu correo y confirma tu dirección.");
+    } else {
+      msg("Sesión iniciada.");
+      $("authForm").reset();
+    }
+  } catch (error) {
+    msg("Error de conexión: " + error.message, true);
+  } finally {
+    $("authSubmit").disabled = false;
+  }
+};
+
+$("resetBtn").onclick = async () => {
+  if (!db) {
+    msg("Supabase no está configurado.", true);
+    return;
+  }
+
+  const email = $("email").value.trim();
+
+  if (!email) {
+    msg("Escribe primero tu correo.", true);
+    return;
+  }
+
+  try {
+    const r = await db.auth.resetPasswordForEmail(email, {
+      redirectTo: location.origin + location.pathname
+    });
+
+    if (r.error) {
+      msg(r.error.message, true);
+    } else {
+      msg("Si la dirección existe, recibirás instrucciones para restablecer la contraseña.");
+    }
+  } catch (error) {
+    msg("Error de conexión: " + error.message, true);
+  }
+};
+
+$("logout").onclick = async () => {
+  if (!db) return;
+
+  try {
+    const r = await db.auth.signOut();
+
+    if (r.error) {
+      msg(r.error.message, true);
+    } else {
+      msg("Sesión cerrada.");
+    }
+  } catch (error) {
+    msg("No se pudo cerrar la sesión: " + error.message, true);
+  }
+};
+
+$("postForm").onsubmit = async e => {
+  e.preventDefault();
+
+  if (!db) {
+    msg("Supabase no está conectado.", true);
+    return;
+  }
+
+  if (!user) {
+    msg("Inicia sesión para publicar.", true);
+    return;
+  }
+
+  const title = $("postTitle").value.trim();
+  const body = $("postBody").value.trim();
+  $("postSubmit").disabled = true;
+
+  try {
+    const r = await db.from("forum_posts").insert({
+      title,
+      body,
+      category: $("category").value,
+      author_id: user.id,
+      author_label: user.email
+    });
+
+    if (r.error) {
+      msg("No se pudo publicar: " + r.error.message, true);
+    } else {
+      $("postForm").reset();
+      msg("Propuesta publicada. Gracias por participar.");
+      await load();
+    }
+  } catch (error) {
+    msg("Error al publicar: " + error.message, true);
+  } finally {
+    $("postSubmit").disabled = false;
+  }
+};
+
+$("sort").onchange = load;
 })();
-</script></body></html>
+</script>
+</body>
+</html>```
