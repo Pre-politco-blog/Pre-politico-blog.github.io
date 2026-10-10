@@ -17,7 +17,9 @@
 (()=>{'use strict';
 const URL_SUPABASE="https://tmzumfpghyvpchtgzrtd.supabase.co", PUBLIC_KEY="sb_publishable_Hx3cNZn-tULIecwGAl67SQ_jwJ9Rcfl";
 const $=id=>document.getElementById(id);let db=null,user=null,mode="login";
-const configured=URL_SUPABASE.startsWith("https://tmzumfpghyvpchtgzrtd.supabase.co")&&!URL_SUPABASE.includes("https://tmzumfpghyvpchtgzrtd.supabase.co")&&!PUBLIC_KEY.includes("sb_publishable_Hx3cNZn-tULIecwGAl67SQ_jwJ9Rcfl");
+const configured = URL_SUPABASE.startsWith("https://") &&
+  URL_SUPABASE.endsWith(".supabase.co") &&
+  PUBLIC_KEY.startsWith("sb_publishable_");
 function msg(t,bad=false){$("notice").textContent=t;$("notice").classList.remove("hidden");$("notice").style.background=bad?"#fff0f0":"#edf4ef";$("notice").style.color=bad?"#8b2020":"#244c32"}
 function button(text,cls,fn){let b=document.createElement("button");b.type="button";b.textContent=text;if(cls)b.className=cls;b.onclick=fn;return b}
 function update(){ $("authPanel").classList.toggle("hidden",!!user);$("userPanel").classList.toggle("hidden",!user);$("logout").classList.toggle("hidden",!user);$("accountText").textContent=user?"Sesión iniciada":"Modo lectura pública";$("signedInAs").textContent=user?`Sesión iniciada como ${user.email}`:""}
