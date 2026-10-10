@@ -15,7 +15,7 @@
 </aside><section class="card"><div class="toolbar"><h2 style="margin:0">Propuestas de la comunidad</h2><select id="sort"><option value="new">Más recientes</option><option value="old">Más antiguas</option></select></div><p class="small">Las publicaciones aparecen inmediatamente. Puedes denunciar contenido para revisión posterior.</p><div id="posts"><div class="empty">Cargando propuestas…</div></div></section></div></main><footer>PRE · Foro informativo y participativo</footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 (()=>{'use strict';
-const URL_SUPABASE="https://tmzumfpghyvpchtgzrtd.supabase.co/rest/v1/", PUBLIC_KEY="sb_publishable_Hx3cNZn-tULIecwGAl67SQ_jwJ9Rcfl";
+const URL_SUPABASE="https://tmzumfpghyvpchtgzrtd.supabase.co", PUBLIC_KEY="sb_publishable_Hx3cNZn-tULIecwGAl67SQ_jwJ9Rcfl";
 const $=id=>document.getElementById(id);let db=null,user=null,mode="login";
 const configured=URL_SUPABASE.startsWith("https://")&&!URL_SUPABASE.includes("PEGA_AQUI")&&!PUBLIC_KEY.includes("PEGA_AQUI");
 function msg(t,bad=false){$("notice").textContent=t;$("notice").classList.remove("hidden");$("notice").style.background=bad?"#fff0f0":"#edf4ef";$("notice").style.color=bad?"#8b2020":"#244c32"}
